@@ -27,7 +27,7 @@ export const UploadDocumentsScreen: React.FC = () => {
     if (!patient) return;
     setIsLoadingList(true);
     try {
-      const res = await apiClient.get(`/api/patients/${patient.id}/documents`);
+      const res = await apiClient.get('/api/patients/me/documents');
       setDocuments(res.data);
     } catch (e: any) {
       console.warn('Failed to fetch patient documents list', e);
@@ -45,7 +45,6 @@ export const UploadDocumentsScreen: React.FC = () => {
 
     setIsUploading(true);
     try {
-      // 1. Construct a mock PDF text file and upload via FormData to /api/storage/upload
       const formData = new FormData();
       const mockFile = {
         uri: 'data:text/plain;base64,JVBERi0xLjQKMSAwIG9iagogLi4u', // stub representation
@@ -53,18 +52,13 @@ export const UploadDocumentsScreen: React.FC = () => {
         type: 'application/pdf'
       } as any;
       formData.append('file', mockFile);
+      formData.append('document_name', docName);
+      formData.append('document_type', docType);
 
-      const uploadRes = await apiClient.post('/api/storage/upload', formData, {
+      await apiClient.post('/api/patients/me/documents/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
-      });
-
-      // 2. Link file metadata to patient documents
-      await apiClient.post(`/api/patients/${patient.id}/documents`, {
-        document_name: docName,
-        document_type: docType,
-        file_url: uploadRes.data.url
       });
 
       Alert.alert('Success', 'Medical document uploaded and securely attached to your record.');

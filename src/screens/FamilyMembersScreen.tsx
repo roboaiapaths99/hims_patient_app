@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, Text, View, ScrollView, TextInput, TouchableOpacity, 
-  ActivityIndicator, Alert 
+  ActivityIndicator, Alert, Modal 
 } from 'react-native';
 import { colors } from '../theme/colors';
 import apiClient from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, UserPlus, Users, Link } from 'lucide-react-native';
+import { ArrowLeft, UserPlus, Users, Link, X } from 'lucide-react-native';
 
 export const FamilyMembersScreen: React.FC = () => {
   const { patient } = useAuth();
@@ -18,6 +18,7 @@ export const FamilyMembersScreen: React.FC = () => {
   const [family, setFamily] = useState<any[]>([]);
   const [isLinking, setIsLinking] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   useEffect(() => {
     fetchFamily();
@@ -27,7 +28,7 @@ export const FamilyMembersScreen: React.FC = () => {
     if (!patient) return;
     setIsLoading(true);
     try {
-      const res = await apiClient.get(`/api/patients/${patient.id}/family`);
+      const res = await apiClient.get('/api/patients/me/family');
       setFamily(res.data);
     } catch (e: any) {
       console.warn('Failed to fetch patient family list', e);
@@ -45,7 +46,7 @@ export const FamilyMembersScreen: React.FC = () => {
 
     setIsLinking(true);
     try {
-      await apiClient.post(`/api/patients/${patient.id}/family`, {
+      await apiClient.post('/api/patients/me/family', {
         relationship,
         linked_patient_id: linkedId.trim()
       });
@@ -53,6 +54,7 @@ export const FamilyMembersScreen: React.FC = () => {
       Alert.alert('Success', 'Family member linked successfully.');
       setLinkedId('');
       fetchFamily();
+      setIsModalVisible(false);
     } catch (e: any) {
       Alert.alert('Linkage Failed', e.response?.data?.detail || 'Verify the Linked Patient ID is correct.');
     } finally {
@@ -70,46 +72,13 @@ export const FamilyMembersScreen: React.FC = () => {
       </View>
 
       <ScrollView style={styles.scroll}>
-        <View style={styles.linkCard}>
-          <Text style={styles.sectionTitle}>Link a Family Profile</Text>
-          
-          <Text style={styles.label}>Family Member's Patient ID</Text>
-          <TextInput
-            placeholder="Enter MongoDB Patient ID (e.g. 648f98...)"
-            placeholderTextColor={colors.textMuted}
-            value={linkedId}
-            onChangeText={setLinkedId}
-            style={styles.input}
-          />
-
-          <Text style={styles.label}>Relationship</Text>
-          <View style={styles.relationsSelector}>
-            {['Spouse', 'Child', 'Parent', 'Sibling'].map((rel) => (
-              <TouchableOpacity 
-                key={rel}
-                style={[styles.relBtn, relationship === rel && styles.activeRelBtn]}
-                onPress={() => setRelationship(rel)}
-              >
-                <Text style={[styles.relBtnText, relationship === rel && styles.activeRelBtnText]}>{rel}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.submitBtn, isLinking && styles.disabledBtn]} 
-            onPress={handleLinkFamily}
-            disabled={isLinking}
-          >
-            {isLinking ? (
-              <ActivityIndicator color={colors.white} size="small" />
-            ) : (
-              <>
-                <UserPlus size={16} color={colors.white} />
-                <Text style={styles.submitBtnText}>Attach Family Member</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity 
+          style={styles.openModalBtn} 
+          onPress={() => setIsModalVisible(true)}
+        >
+          <UserPlus size={16} color={colors.white} />
+          <Text style={styles.openModalBtnText}>Link a Family Profile</Text>
+        </TouchableOpacity>
 
         <Text style={styles.listTitle}>Linked Family Circle</Text>
         {isLoading ? (
@@ -136,6 +105,66 @@ export const FamilyMembersScreen: React.FC = () => {
         )}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Link Family Profile Modal */}
+      <Modal
+        visible={isModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Link a Family Profile</Text>
+              <TouchableOpacity 
+                style={styles.closeBtnCircle} 
+                onPress={() => setIsModalVisible(false)}
+              >
+                <X size={14} color={colors.white} />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>Family Member's Patient ID</Text>
+            <TextInput
+              placeholder="Enter MongoDB Patient ID (e.g. 648f98...)"
+              placeholderTextColor={colors.textMuted}
+              value={linkedId}
+              onChangeText={setLinkedId}
+              style={styles.modalInput}
+              autoCapitalize="none"
+            />
+
+            <Text style={styles.modalLabel}>Relationship</Text>
+            <View style={styles.relationsSelector}>
+              {['Spouse', 'Child', 'Parent', 'Sibling'].map((rel) => (
+                <TouchableOpacity 
+                  key={rel}
+                  style={[styles.relBtn, relationship === rel && styles.activeRelBtn]}
+                  onPress={() => setRelationship(rel)}
+                >
+                  <Text style={[styles.relBtnText, relationship === rel && styles.activeRelBtnText]}>{rel}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.submitBtn, isLinking && styles.disabledBtn]} 
+              onPress={handleLinkFamily}
+              disabled={isLinking}
+            >
+              {isLinking ? (
+                <ActivityIndicator color={colors.white} size="small" />
+              ) : (
+                <>
+                  <UserPlus size={16} color={colors.white} />
+                  <Text style={styles.submitBtnText}>Attach Family Member</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -281,5 +310,80 @@ const styles = StyleSheet.create({
   },
   linkBadge: {
     marginLeft: 12,
+  },
+  openModalBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  openModalBtnText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: colors.white,
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 360,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  closeBtnCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#1e3a8a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: colors.secondary,
+    marginBottom: 6,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+    color: colors.text,
+    marginBottom: 16,
+    backgroundColor: colors.background,
   },
 });

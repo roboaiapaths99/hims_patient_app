@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, Text, View, ScrollView, TouchableOpacity, 
-  ActivityIndicator, FlatList, Alert 
+  ActivityIndicator, FlatList, Alert, Modal 
 } from 'react-native';
 import { colors } from '../theme/colors';
 import apiClient from '../api/client';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, ClipboardList, ShieldCheck } from 'lucide-react-native';
+import { ArrowLeft, ClipboardList, ShieldCheck, FileText } from 'lucide-react-native';
+import { WebView } from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const PrescriptionsScreen: React.FC = () => {
   const navigation = useNavigation();
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPrescriptions();
@@ -26,6 +29,16 @@ export const PrescriptionsScreen: React.FC = () => {
       Alert.alert('Error', 'Failed to retrieve prescriptions.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleOpenPdf = async (prescId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('hmis_token');
+      const url = `${apiClient.defaults.baseURL}/api/pharmacy/prescriptions/patient/${prescId}/pdf?token=${token}`;
+      setPdfViewerUrl(url);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to retrieve secure authorization token.');
     }
   };
 
@@ -79,18 +92,54 @@ export const PrescriptionsScreen: React.FC = () => {
               </View>
 
               <View style={styles.statusRow}>
-                <Text style={styles.statusLabel}>Status: </Text>
-                <Text style={[
-                  styles.statusValue, 
-                  { color: item.status === 'dispensed' ? colors.success : colors.warning }
-                ]}>
-                  {item.status.toUpperCase()}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Text style={styles.statusLabel}>Status: </Text>
+                  <Text style={[
+                    styles.statusValue, 
+                    { color: item.status === 'dispensed' ? colors.success : colors.warning }
+                  ]}>
+                    {item.status.toUpperCase()}
+                  </Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.pdfButton}
+                  onPress={() => handleOpenPdf(item.id)}
+                >
+                  <FileText size={12} color={colors.accent} style={{ marginRight: 4 }} />
+                  <Text style={styles.pdfButtonText}>View PDF</Text>
+                </TouchableOpacity>
               </View>
             </View>
           )}
         />
       )}
+
+      {/* PDF Viewer Modal */}
+      <Modal
+        visible={pdfViewerUrl !== null}
+        animationType="slide"
+        onRequestClose={() => setPdfViewerUrl(null)}
+      >
+        <View style={styles.pdfModalHeader}>
+          <Text style={styles.pdfModalTitle}>Prescription PDF Viewer</Text>
+          <TouchableOpacity 
+            style={styles.closePdfButton}
+            onPress={() => setPdfViewerUrl(null)}
+          >
+            <Text style={styles.closePdfButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1 }}>
+          {pdfViewerUrl && (
+            <WebView
+              source={{ uri: pdfViewerUrl }}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              originWhitelist={['*']}
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -202,6 +251,7 @@ const styles = StyleSheet.create({
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: 8,
     borderTopWidth: 1,
     borderTopColor: colors.border,
@@ -214,5 +264,46 @@ const styles = StyleSheet.create({
   statusValue: {
     fontSize: 11,
     fontWeight: 'bold',
+  },
+  pdfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: '#f5f3ff',
+  },
+  pdfButtonText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: colors.accent,
+  },
+  pdfModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pdfModalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  closePdfButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: colors.border,
+  },
+  closePdfButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.text,
   },
 });

@@ -7,7 +7,9 @@ import { colors } from '../theme/colors';
 import apiClient from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, FileText, Activity, AlertTriangle, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, FileText, Activity, AlertTriangle, CheckCircle, Eye } from 'lucide-react-native';
+import { WebView } from 'react-native-webview';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const LabReportsScreen: React.FC = () => {
   const { patient } = useAuth();
@@ -17,6 +19,7 @@ export const LabReportsScreen: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [results, setResults] = useState<any>(null);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchLabReports();
@@ -45,6 +48,17 @@ export const LabReportsScreen: React.FC = () => {
       setSelectedOrder(null);
     } finally {
       setIsLoadingResults(false);
+    }
+  };
+
+  const handleOpenPdf = async () => {
+    if (!selectedOrder) return;
+    try {
+      const token = await AsyncStorage.getItem('hmis_token');
+      const url = `${apiClient.defaults.baseURL}/api/labs/results/patient/${selectedOrder.id}/pdf?token=${token}`;
+      setPdfViewerUrl(url);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to retrieve secure authorization token.');
     }
   };
 
@@ -145,16 +159,43 @@ export const LabReportsScreen: React.FC = () => {
                 ))}
 
                 {results.pdf_url && (
-                  <View style={styles.pdfSection}>
-                    <CheckCircle size={16} color={colors.success} />
-                    <Text style={styles.pdfText}>Official signed PDF report uploaded.</Text>
-                  </View>
+                  <TouchableOpacity style={styles.pdfSection} onPress={handleOpenPdf}>
+                    <Eye size={16} color={colors.success} />
+                    <Text style={styles.pdfText}>View Signed PDF Report</Text>
+                  </TouchableOpacity>
                 )}
               </ScrollView>
             ) : (
               <Text style={styles.errorText}>Failed to load details.</Text>
             )}
           </View>
+        </View>
+      </Modal>
+
+      {/* PDF Viewer Modal */}
+      <Modal
+        visible={pdfViewerUrl !== null}
+        animationType="slide"
+        onRequestClose={() => setPdfViewerUrl(null)}
+      >
+        <View style={styles.pdfModalHeader}>
+          <Text style={styles.pdfModalTitle}>Report PDF Viewer</Text>
+          <TouchableOpacity 
+            style={styles.closePdfButton}
+            onPress={() => setPdfViewerUrl(null)}
+          >
+            <Text style={styles.closePdfButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1 }}>
+          {pdfViewerUrl && (
+            <WebView
+              source={{ uri: pdfViewerUrl }}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              originWhitelist={['*']}
+            />
+          )}
         </View>
       </Modal>
     </View>
@@ -360,5 +401,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: colors.danger,
     marginTop: 20,
+  },
+  pdfModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pdfModalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  closePdfButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: colors.border,
+  },
+  closePdfButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.text,
   },
 });

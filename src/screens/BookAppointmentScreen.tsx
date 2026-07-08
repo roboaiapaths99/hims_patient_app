@@ -13,20 +13,26 @@ export const BookAppointmentScreen: React.FC = () => {
   const { patient } = useAuth();
   const navigation = useNavigation<any>();
 
-  // Wizard Steps: 1 = Branch, 2 = Department, 3 = Doctor, 4 = Time Slot & Reason
+  // Wizard Steps: 1 = Hospital/Branch, 2 = Department, 3 = Doctor, 4 = Time Slot & Reason
   const [step, setStep] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Loaded Options
-  const [branches, setBranches] = useState<any[]>([]);
+  const [hospitals, setHospitals] = useState<any[]>([]);
+  const [filteredHospitals, setFilteredHospitals] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const [doctors, setDoctors] = useState<any[]>([]);
 
   // Selected parameters
-  const [selectedBranch, setSelectedBranch] = useState<any>(null);
-  const [selectedDepartment, setSelectedDepartment] = useState<any>(null);
-  const [selectedDoctor, setSelectedDoctor] = useState<any>(null);
+  const [selectedHospital, setSelectedHospital] = useState<any | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState<any | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<any | null>(null);
+  const [selectedDoctor, setSelectedDoctor] = useState<any | null>(null);
+  
+  // Search parameters
+  const [hospitalQuery, setHospitalQuery] = useState('');
+  const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
   
   // Date & Time parameters
   const [selectedDate, setSelectedDate] = useState('');
@@ -40,21 +46,43 @@ export const BookAppointmentScreen: React.FC = () => {
   ];
 
   useEffect(() => {
-    loadBranches();
+    loadHospitals();
   }, []);
 
-  const loadBranches = async () => {
+  const loadHospitals = async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await apiClient.get('/api/org/branches');
-      setBranches(res.data);
+      const res = await apiClient.get('/api/auth/public/hospitals');
+      setHospitals(res.data);
     } catch (err: any) {
       console.error(err);
-      setError('Failed to fetch hospital branches.');
+      setError('Failed to fetch hospital listing.');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleHospitalSearch = (text: string) => {
+    setHospitalQuery(text);
+    setSelectedHospital(null);
+    setSelectedBranch(null);
+    if (!text.trim()) {
+      setFilteredHospitals([]);
+      setShowHospitalDropdown(false);
+      return;
+    }
+    const filtered = hospitals.filter(h => 
+      h.name.toLowerCase().includes(text.toLowerCase())
+    );
+    setFilteredHospitals(filtered);
+    setShowHospitalDropdown(true);
+  };
+
+  const handleSelectHospital = (hospital: any) => {
+    setSelectedHospital(hospital);
+    setHospitalQuery(hospital.name);
+    setShowHospitalDropdown(false);
   };
 
   const handleSelectBranch = async (branch: any) => {
@@ -62,8 +90,10 @@ export const BookAppointmentScreen: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Load departments
-      const deptRes = await apiClient.get('/api/config/departments');
+      // Load departments for this selected hospital tenant
+      const deptRes = await apiClient.get('/api/config/departments', {
+        params: { tenant_id: selectedHospital.id }
+      });
       setDepartments(deptRes.data.filter((d: any) => d.is_active));
       setStep(2);
     } catch (err: any) {
@@ -83,7 +113,6 @@ export const BookAppointmentScreen: React.FC = () => {
       const docRes = await apiClient.get('/api/org/users', {
         params: { branch_id: selectedBranch.id }
       });
-      // Filter for doctors/surgeons/anesthetists
       const filteredDocs = docRes.data.filter((u: any) => 
         ['doctor', 'surgeon', 'anesthetist'].includes(u.role)
       );
@@ -99,7 +128,6 @@ export const BookAppointmentScreen: React.FC = () => {
 
   const handleSelectDoctor = (doctor: any) => {
     setSelectedDoctor(doctor);
-    // Set a default date of tomorrow
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     setSelectedDate(tomorrow.toISOString().split('T')[0]);
@@ -107,15 +135,14 @@ export const BookAppointmentScreen: React.FC = () => {
   };
 
   const handleBookAppointment = async () => {
-    if (!selectedTime || !reason.trim() || !patient) {
-      Alert.alert('Incomplete Form', 'Please select a time slot and enter the reason for consultation.');
+    if (!selectedTime || !reason.trim() || !patient || !selectedHospital || !selectedBranch) {
+      Alert.alert('Incomplete Form', 'Please complete all details.');
       return;
     }
 
     setIsLoading(true);
     setError(null);
 
-    // Compute start and end times
     const startParts = selectedTime.split(':');
     const startMin = parseInt(startParts[1]);
     const startHour = parseInt(startParts[0]);
@@ -135,7 +162,9 @@ export const BookAppointmentScreen: React.FC = () => {
       start_time: selectedTime,
       end_time: endTimeStr,
       status: 'scheduled',
-      reason: reason.trim()
+      reason: reason.trim(),
+      tenant_id: selectedHospital.id,
+      branch_id: selectedBranch.id
     };
 
     try {
@@ -192,23 +221,60 @@ export const BookAppointmentScreen: React.FC = () => {
         <ScrollView style={styles.content}>
           {error && <Text style={styles.errorText}>{error}</Text>}
 
-          {/* STEP 1: Select Branch */}
+          {/* STEP 1: Search Hospital & Select Branch */}
           {step === 1 && (
             <View style={styles.stepContainer}>
-              <Text style={styles.stepInfo}>Choose the hospital facility branch you wish to consult with.</Text>
-              {branches.map(item => (
-                <TouchableOpacity 
-                  key={item.id}
-                  style={styles.selectCard}
-                  onPress={() => handleSelectBranch(item)}
-                >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.cardMainText}>{item.name}</Text>
-                    <Text style={styles.cardSubText}>{item.address}</Text>
-                  </View>
-                  <ChevronRight size={18} color={colors.secondary} />
-                </TouchableOpacity>
-              ))}
+              <Text style={styles.stepInfo}>Search and select a hospital first, then choose a branch facility.</Text>
+              
+              {/* Hospital Search Input */}
+              <View style={styles.searchBox}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Type to search hospitals..."
+                  placeholderTextColor={colors.textMuted}
+                  value={hospitalQuery}
+                  onChangeText={handleHospitalSearch}
+                />
+              </View>
+
+              {/* Hospital Selection Dropdown */}
+              {showHospitalDropdown && filteredHospitals.length > 0 && (
+                <View style={styles.dropdown}>
+                  {filteredHospitals.map(item => (
+                    <TouchableOpacity
+                      key={item.id}
+                      style={styles.dropdownItem}
+                      onPress={() => handleSelectHospital(item)}
+                    >
+                      <Text style={styles.dropdownText}>{item.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Selected Hospital Display and Branch List */}
+              {selectedHospital && (
+                <View style={styles.branchListContainer}>
+                  <Text style={styles.selectedHospitalLabel}>Branches of {selectedHospital.name}:</Text>
+                  {selectedHospital.branches && selectedHospital.branches.length > 0 ? (
+                    selectedHospital.branches.map((item: any) => (
+                      <TouchableOpacity 
+                        key={item.id}
+                        style={styles.selectCard}
+                        onPress={() => handleSelectBranch(item)}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.cardMainText}>{item.name}</Text>
+                          <Text style={styles.cardSubText}>Branch Code: {item.code}</Text>
+                        </View>
+                        <ChevronRight size={18} color={colors.secondary} />
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    <Text style={styles.emptyText}>No registered branches for this hospital.</Text>
+                  )}
+                </View>
+              )}
             </View>
           )}
 
@@ -523,6 +589,47 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 14,
     marginLeft: 8,
+  },
+  searchBox: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  searchInput: {
+    paddingVertical: 10,
+    fontSize: 13,
+    color: colors.text,
+  },
+  dropdown: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    maxHeight: 150,
+    marginBottom: 15,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+  },
+  dropdownText: {
+    fontSize: 13,
+    color: colors.text,
+  },
+  branchListContainer: {
+    marginTop: 10,
+  },
+  selectedHospitalLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: colors.secondary,
+    marginBottom: 10,
+    textTransform: 'uppercase',
   }
 });
 export default BookAppointmentScreen;

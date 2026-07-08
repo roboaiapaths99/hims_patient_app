@@ -8,6 +8,7 @@ import apiClient from '../api/client';
 import { colors } from '../theme/colors';
 import { WebView } from 'react-native-webview';
 import { CreditCard, FileText, X, Check, RefreshCw } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const BillingScreen: React.FC = () => {
   const { patient } = useAuth();
@@ -16,6 +17,7 @@ export const BillingScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activePaymentUrl, setActivePaymentUrl] = useState<string | null>(null);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
 
   // Frontend port for checkout WebView
   const FRONTEND_HOST = Platform.select({
@@ -31,9 +33,7 @@ export const BillingScreen: React.FC = () => {
     if (!patient) return;
     setIsLoading(true);
     try {
-      const res = await apiClient.get('/api/billing/invoices', {
-        params: { patient_id: patient.id }
-      });
+      const res = await apiClient.get('/api/billing/invoices/patient');
       setInvoices(res.data);
     } catch (err) {
       console.error('Failed to load invoices:', err);
@@ -52,6 +52,16 @@ export const BillingScreen: React.FC = () => {
     // Points to frontend Checkout page
     const checkoutUrl = `${FRONTEND_HOST}/payment/checkout/${invoiceId}`;
     setActivePaymentUrl(checkoutUrl);
+  };
+
+  const handleOpenPdf = async (invoiceId: string) => {
+    try {
+      const token = await AsyncStorage.getItem('hmis_token');
+      const url = `${apiClient.defaults.baseURL}/api/billing/invoices/patient/${invoiceId}/pdf?token=${token}`;
+      setPdfViewerUrl(url);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to retrieve secure authorization token.');
+    }
   };
 
   // Track redirection changes to close webview on checkout success/failure
@@ -102,15 +112,25 @@ export const BillingScreen: React.FC = () => {
         <View style={styles.cardFooter}>
           <Text style={styles.totalText}>Grand Total: <Text style={styles.totalAmount}>₹{item.grand_total}</Text></Text>
           
-          {isUnpaid && (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
-              style={styles.payButton}
-              onPress={() => handleOpenCheckout(item.id)}
+              style={[styles.pdfButton, { marginRight: 8 }]}
+              onPress={() => handleOpenPdf(item.id)}
             >
-              <CreditCard size={14} color={colors.white} />
-              <Text style={styles.payButtonText}>Pay Invoice</Text>
+              <FileText size={14} color={colors.primary} />
+              <Text style={styles.pdfButtonText}>PDF</Text>
             </TouchableOpacity>
-          )}
+
+            {isUnpaid && (
+              <TouchableOpacity 
+                style={styles.payButton}
+                onPress={() => handleOpenCheckout(item.id)}
+              >
+                <CreditCard size={14} color={colors.white} />
+                <Text style={styles.payButtonText}>Pay</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
     );
@@ -168,6 +188,33 @@ export const BillingScreen: React.FC = () => {
             <WebView
               source={{ uri: activePaymentUrl }}
               onNavigationStateChange={handleNavigationStateChange}
+              javaScriptEnabled={true}
+              domStorageEnabled={true}
+              originWhitelist={['*']}
+            />
+          )}
+        </View>
+      </Modal>
+
+      {/* PDF Viewer Modal */}
+      <Modal
+        visible={pdfViewerUrl !== null}
+        animationType="slide"
+        onRequestClose={() => setPdfViewerUrl(null)}
+      >
+        <View style={styles.pdfModalHeader}>
+          <Text style={styles.pdfModalTitle}>Invoice PDF Viewer</Text>
+          <TouchableOpacity 
+            style={styles.closePdfButton}
+            onPress={() => setPdfViewerUrl(null)}
+          >
+            <Text style={styles.closePdfButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{ flex: 1 }}>
+          {pdfViewerUrl && (
+            <WebView
+              source={{ uri: pdfViewerUrl }}
               javaScriptEnabled={true}
               domStorageEnabled={true}
               originWhitelist={['*']}
@@ -332,6 +379,48 @@ const styles = StyleSheet.create({
   },
   closeModalButton: {
     padding: 6,
-  }
+  },
+  pdfButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: '#f8fafc',
+  },
+  pdfButtonText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginLeft: 4,
+  },
+  pdfModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  pdfModalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.primary,
+  },
+  closePdfButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: colors.border,
+  },
+  closePdfButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
 });
 export default BillingScreen;

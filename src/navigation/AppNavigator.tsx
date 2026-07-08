@@ -16,6 +16,7 @@ import { UploadDocumentsScreen } from '../screens/UploadDocumentsScreen';
 import { FamilyMembersScreen } from '../screens/FamilyMembersScreen';
 import { AbhaProfileScreen } from '../screens/AbhaProfileScreen';
 import { FeedbackScreen } from '../screens/FeedbackScreen';
+import { NotificationsScreen } from '../screens/NotificationsScreen';
 
 
 // Icons
@@ -100,6 +101,7 @@ export const AppNavigator: React.FC = () => {
           <Stack.Screen name="AbhaProfile" component={AbhaProfileScreen} />
           <Stack.Screen name="Feedback" component={FeedbackScreen} />
           <Stack.Screen name="AmbulanceRequest" component={AmbulanceRequestScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
         </>
       )}
     </Stack.Navigator>

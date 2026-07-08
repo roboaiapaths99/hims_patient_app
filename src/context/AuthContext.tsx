@@ -89,14 +89,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
+      console.log('Clearing auth session...');
       await AsyncStorage.removeItem('hmis_token');
       await AsyncStorage.removeItem('hmis_patient_data');
       await AsyncStorage.removeItem('hmis_current_branch_id');
       await AsyncStorage.removeItem('hmis_user_tenant_id');
+      console.log('Auth data cleared, updating state...');
       setPatient(null);
       setIsAuthenticated(false);
+      console.log('Logout complete');
     } catch (e) {
       console.error('Failed to clear session details', e);
+      throw e; // Re-throw so caller knows there was an error
     }
   };
 
