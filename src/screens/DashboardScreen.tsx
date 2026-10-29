@@ -38,8 +38,8 @@ export const DashboardScreen: React.FC = () => {
     if (!patient?.id) return;
 
     // Connects to socket base dynamically derived from api base url
-    const socketBase = 'http://localhost:8002'; // default development backend address
-    const socket = io(socketBase, {
+    const patientMobileSocketUrl = 'http://localhost:8002'; // default development backend address
+    const socket = io(patientMobileSocketUrl, {
       transports: ['websocket'],
       upgrade: false
     });
