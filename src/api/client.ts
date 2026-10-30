@@ -1,27 +1,44 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-
 import { Platform } from 'react-native';
 
-const getBaseUrl = () => {
-  const debuggerHost = Constants.expoConfig?.hostUri || '';
-  if (debuggerHost) {
-    const ip = debuggerHost.split(':')[0];
-    return `http://${ip}:8002`;
+export const PRODUCTION_API_URL = 'https://technulahims.technula.com';
+export const PRODUCTION_WEB_URL = 'https://technulahims.technula.com';
+
+export const getBaseUrl = (): string => {
+  // 1. Explicit environment variable set at build/runtime
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
   }
   
-  if (Platform.OS === 'android') {
-    return 'http://10.0.2.2:8002';
+  // 2. Extra config from app.json
+  const extraUrl = Constants.expoConfig?.extra?.apiUrl;
+  if (extraUrl) {
+    return extraUrl;
   }
-  return 'http://localhost:8002';
+
+  // 3. Fallback to production live API URL (never fails on physical release builds)
+  return PRODUCTION_API_URL;
+};
+
+export const getWebBaseUrl = (): string => {
+  if (process.env.EXPO_PUBLIC_WEB_URL) {
+    return process.env.EXPO_PUBLIC_WEB_URL;
+  }
+  const extraWebUrl = Constants.expoConfig?.extra?.webUrl;
+  if (extraWebUrl) {
+    return extraWebUrl;
+  }
+  return PRODUCTION_WEB_URL;
 };
 
 export const API_BASE_URL = getBaseUrl();
+export const WEB_BASE_URL = getWebBaseUrl();
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -7,6 +7,7 @@ import { WebView } from 'react-native-webview';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { colors } from '../theme/colors';
 import { PhoneOff } from 'lucide-react-native';
+import { WEB_BASE_URL } from '../api/client';
 
 export const TelehealthScreen: React.FC = () => {
   const route = useRoute<any>();
@@ -16,10 +17,7 @@ export const TelehealthScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   // Points to the frontend patient Jitsi lobby page
-  const FRONTEND_HOST = Platform.select({
-    android: 'http://10.0.2.2:5173',
-    default: 'http://localhost:5173'
-  });
+  const FRONTEND_HOST = WEB_BASE_URL;
 
   const jitsiUrl = `${FRONTEND_HOST}/patient/teleconsultation/${sessionId}`;
 

@@ -4,7 +4,7 @@ import {
   FlatList, ActivityIndicator, Modal, Platform, Alert, RefreshControl 
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
-import apiClient from '../api/client';
+import apiClient, { WEB_BASE_URL } from '../api/client';
 import { colors } from '../theme/colors';
 import { WebView } from 'react-native-webview';
 import { CreditCard, FileText, X, Check, RefreshCw } from 'lucide-react-native';
@@ -20,10 +20,7 @@ export const BillingScreen: React.FC = () => {
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string | null>(null);
 
   // Frontend port for checkout WebView
-  const FRONTEND_HOST = Platform.select({
-    android: 'http://10.0.2.2:5173',
-    default: 'http://localhost:5173'
-  });
+  const FRONTEND_HOST = WEB_BASE_URL;
 
   useEffect(() => {
     loadInvoices();

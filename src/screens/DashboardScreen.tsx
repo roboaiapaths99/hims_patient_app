@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { io } from 'socket.io-client';
 import { useAuth } from '../context/AuthContext';
-import apiClient from '../api/client';
+import apiClient, { API_BASE_URL } from '../api/client';
 import { colors } from '../theme/colors';
 import { useNavigation } from '@react-navigation/native';
 import { 
@@ -38,10 +38,11 @@ export const DashboardScreen: React.FC = () => {
     if (!patient?.id) return;
 
     // Connects to socket base dynamically derived from api base url
-    const patientMobileSocketUrl = 'http://localhost:8002'; // default development backend address
+    const patientMobileSocketUrl = API_BASE_URL;
     const socket = io(patientMobileSocketUrl, {
-      transports: ['websocket'],
-      upgrade: false
+      path: '/socket.io/',
+      transports: ['websocket', 'polling'],
+      upgrade: true
     });
 
     socket.on('connect', () => {
