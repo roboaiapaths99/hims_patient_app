@@ -51,8 +51,9 @@
       "apiUrl": "https://technulahims.technula.com",
       "webUrl": "https://technulahims.technula.com",
       "eas": {
-        "projectId": "8b51d382-74d4-42b7-a364-c4e8db814be9"
+        "projectId": "58006927-0f84-43a9-b144-2e8c31c8a4df"
       }
-    }
+    },
+    "owner": "roboaiapaths"
   }
 }
