@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   StyleSheet, Text, View, TextInput, TouchableOpacity, 
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView 
+  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image 
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
@@ -58,8 +58,12 @@ export const LoginScreen: React.FC = () => {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
-          <ShieldCheck size={50} color={colors.accent} />
-          <Text style={styles.title}>Private Telehealth Portal</Text>
+          <Image
+            source={require('../../assets/logo-full.png')}
+            style={styles.brandLogo}
+            resizeMode="contain"
+          />
+          <Text style={styles.title}>Patient Telehealth Portal</Text>
           <Text style={styles.subtitle}>SaaS Multi-Branch Hospital Information System</Text>
         </View>
 
@@ -158,7 +162,12 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 24,
+  },
+  brandLogo: {
+    width: 220,
+    height: 64,
+    marginBottom: 8,
   },
   title: {
     fontSize: 22,

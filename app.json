@@ -8,7 +8,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0d9488"
+      "backgroundColor": "#ffffff"
     },
     "userInterfaceStyle": "light",
     "ios": {
@@ -19,7 +19,7 @@
       "package": "com.roboaiapaths99.hims_patient_app",
       "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#0d9488",
+        "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
